@@ -5,7 +5,7 @@
 
 ## Коммит
 
-
+(https://github.com/character6/carting_center/commit/3aad275f838ca43287e004e1f0a26f832c0f1444)
 
 ## 1. Архитектурный план клиентского приложения
 
