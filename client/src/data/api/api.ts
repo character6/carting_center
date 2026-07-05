@@ -14,3 +14,19 @@ export async function fetchSlots(from?: string, to?: string): Promise<Slot[]> {
 
   return getSlots(fromDate, toDate);
 }
+
+import { createBooking as mockCreateBooking, type CreateBookingRequest, type Booking } from '../mock/mockServer';
+
+// Создать бронирование
+export async function createBooking(request: CreateBookingRequest): Promise<Booking> {
+  try {
+    return await mockCreateBooking(request);
+  } catch (error: any) {
+    // Если это ошибка API (с полем error)
+    if (error?.error?.code) {
+      throw new Error(error.error.message);
+    }
+    // Иначе — общая ошибка
+    throw new Error('Не удалось создать бронирование. Попробуйте ещё раз.');
+  }
+}

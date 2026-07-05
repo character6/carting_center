@@ -1,10 +1,8 @@
-// src/presentation/components/SlotsList.tsx
-
 import { useEffect, useMemo, useState } from 'react';
 import { fetchSlots } from '../../data/api/api';
-import type { Slot } from '../../data/mock/mockServer';
-
-// ---------- Вспомогательные утилиты ----------
+import type { Slot, Booking } from '../../data/mock/mockServer';
+import { BookingModal } from './BookingModal';
+import { BookingConfirmation } from './BookingConfirmation';
 
 function formatDate(iso: string): string {
   return new Date(iso).toLocaleDateString('ru-RU', {
@@ -36,8 +34,6 @@ function Stars({ rating }: { rating: number }) {
   );
 }
 
-// ---------- Основной компонент ----------
-
 export function SlotsList() {
   const today = useMemo(() => new Date(), []);
   const defaultTo = useMemo(
@@ -52,7 +48,13 @@ export function SlotsList() {
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
 
-  // Загрузка слотов (FR-01.1 — 7 дней по умолчанию)
+  // Фича 2: состояние для модалки и подтверждения
+  const [selectedSlot, setSelectedSlot] = useState<Slot | null>(null);
+  const [confirmedBooking, setConfirmedBooking] = useState<{
+    slot: Slot;
+    booking: Booking;
+  } | null>(null);
+
   useEffect(() => {
     let cancelled = false;
     setLoading(true);
@@ -75,21 +77,34 @@ export function SlotsList() {
   }, [from, to]);
 
   const handleApplyFilter = () => {
-    // триггерим ре-загрузку через изменение ключей useEffect (уже привязаны к from/to)
     setFrom((v) => v);
     setTo((v) => v);
   };
 
+  // Если показываем экран подтверждения
+  if (confirmedBooking) {
+    return (
+      <BookingConfirmation
+        slot={confirmedBooking.slot}
+        booking={confirmedBooking.booking}
+        onClose={() => {
+          setConfirmedBooking(null);
+          // Перезагружаем слоты
+          setFrom((v) => v);
+          setTo((v) => v);
+        }}
+      />
+    );
+  }
+
   return (
     <div className="min-h-screen bg-slate-50">
       <div className="max-w-md mx-auto px-4 py-6">
-        {/* Header */}
         <header className="mb-4">
           <h1 className="text-2xl font-bold text-slate-900">Расписание</h1>
           <p className="text-sm text-slate-500">Выберите удобный заезд</p>
         </header>
 
-        {/* Фильтр по датам (FR-01.3) */}
         <div className="bg-white rounded-2xl shadow-sm p-3 mb-4 flex flex-col gap-2">
           <div className="flex gap-2">
             <label className="flex-1 flex flex-col text-xs text-slate-500">
@@ -120,14 +135,12 @@ export function SlotsList() {
           </button>
         </div>
 
-        {/* Loading */}
         {loading && (
           <div className="flex justify-center items-center py-12">
             <div className="w-8 h-8 border-4 border-slate-200 border-t-slate-900 rounded-full animate-spin" />
           </div>
         )}
 
-        {/* Error */}
         {!loading && error && (
           <div className="bg-red-50 border border-red-200 text-red-700 rounded-2xl p-4 text-sm">
             <p className="font-semibold">Ошибка загрузки</p>
@@ -135,7 +148,6 @@ export function SlotsList() {
           </div>
         )}
 
-        {/* Empty state (FR-01.4) */}
         {!loading && !error && slots.length === 0 && (
           <div className="bg-white rounded-2xl p-8 text-center shadow-sm">
             <div className="text-4xl mb-2">🏁</div>
@@ -146,28 +158,38 @@ export function SlotsList() {
           </div>
         )}
 
-        {/* Список слотов (FR-01.2) */}
         {!loading && !error && slots.length > 0 && (
           <div className="flex flex-col gap-3">
             {slots.map((slot) => (
-              <SlotCard key={slot.id} slot={slot} />
+              <SlotCard
+                key={slot.id}
+                slot={slot}
+                onBook={() => setSelectedSlot(slot)}
+              />
             ))}
           </div>
         )}
       </div>
+
+      {/* Модалка бронирования */}
+      {selectedSlot && (
+        <BookingModal
+          slot={selectedSlot}
+          onClose={() => setSelectedSlot(null)}
+          onSuccess={(booking) => {
+            setConfirmedBooking({ slot: selectedSlot, booking });
+            setSelectedSlot(null);
+          }}
+        />
+      )}
     </div>
   );
 }
 
-// ---------- Карточка слота ----------
-
-function SlotCard({ slot }: { slot: Slot }) {
+function SlotCard({ slot, onBook }: { slot: Slot; onBook: () => void }) {
   const isFull = slot.status === 'full';
   const isCancelled = slot.status === 'cancelled_by_center';
   const isAvailable = slot.status === 'available';
-
-  const totalPrice =
-    slot.basePrice + (slot.hasEquipmentAvailable ? slot.equipmentRentalPrice : 0);
 
   return (
     <div
@@ -176,7 +198,6 @@ function SlotCard({ slot }: { slot: Slot }) {
         isFull ? 'opacity-70' : '',
       ].join(' ')}
     >
-      {/* Красная плашка для отменённого (FR: cancelled_by_center) */}
       {isCancelled && (
         <div className="bg-red-500 text-white px-4 py-2 text-sm font-medium flex items-center gap-2">
           <span>⚠️</span>
@@ -185,7 +206,6 @@ function SlotCard({ slot }: { slot: Slot }) {
       )}
 
       <div className="p-4">
-        {/* Верхняя строка: дата/время + тип трассы */}
         <div className="flex items-start justify-between mb-3">
           <div>
             <div className="text-xs text-slate-500 uppercase tracking-wide">
@@ -210,7 +230,6 @@ function SlotCard({ slot }: { slot: Slot }) {
           </span>
         </div>
 
-        {/* Маршал */}
         <div className="flex items-center gap-2 mb-3">
           <div className="w-8 h-8 rounded-full bg-slate-200 flex items-center justify-center text-slate-600 font-semibold text-sm">
             {slot.marshal.name[0]}
@@ -223,7 +242,6 @@ function SlotCard({ slot }: { slot: Slot }) {
           </div>
         </div>
 
-        {/* Места + экипировка */}
         <div className="flex items-center justify-between text-sm mb-4">
           <div className="flex items-center gap-3">
             <span
@@ -247,7 +265,6 @@ function SlotCard({ slot }: { slot: Slot }) {
           </div>
         </div>
 
-        {/* Цена + кнопка */}
         <div className="flex items-center justify-between pt-3 border-t border-slate-100">
           <div>
             <div className="text-xs text-slate-500">от</div>
@@ -262,11 +279,12 @@ function SlotCard({ slot }: { slot: Slot }) {
           </div>
 
           <button
+            onClick={onBook}
             disabled={!isAvailable}
             className={[
               'px-5 py-2.5 rounded-xl text-sm font-semibold transition',
               isAvailable
-                ? 'bg-slate-900 text-white active:bg-slate-700'
+                ? 'bg-slate-900 text-white active:bg-slate-700 hover:bg-slate-700'
                 : isFull
                 ? 'bg-slate-200 text-slate-500 cursor-not-allowed'
                 : 'bg-red-100 text-red-400 cursor-not-allowed',

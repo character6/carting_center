@@ -49,7 +49,7 @@ function seededRandom(seed: number): () => number {
 }
 
 // Генерация слотов один раз при старте модуля
-function generateSlots(): Slot[] {
+export function generateSlots(): Slot[] {
   const rand = seededRandom(42);
   const slots: Slot[] = [];
   const today = new Date();
@@ -141,4 +141,100 @@ export async function getSlots(from: string, to: string): Promise<Slot[]> {
     const t = new Date(slot.startTime).getTime();
     return t >= fromDate.getTime() && t <= toDate.getTime();
   });
+}
+
+// ==========================================
+// Фича 2: Бронирование
+// ==========================================
+
+export interface CreateBookingRequest {
+  slotId: string;
+  equipmentType: 'own' | 'rental';
+  skillLevel: 'beginner' | 'experienced';
+}
+
+export interface Booking {
+  id: string;
+  slotId: string;
+  userId: string;
+  equipmentType: 'own' | 'rental';
+  skillLevel: 'beginner' | 'experienced';
+  status: 'active' | 'completed' | 'cancelled_by_client' | 'cancelled_by_center';
+  totalPrice: number;
+  createdAt: string;
+  cancelReason?: string;
+  marshalRating?: number;
+  marshalComment?: string;
+}
+
+// Получить все слоты (для поиска конкретного слота по ID)
+let allSlotsCache: Slot[] | null = null;
+
+async function getAllSlots(): Promise<Slot[]> {
+  if (!allSlotsCache) {
+    allSlotsCache = generateSlots();  // ✅ без параметров
+  }
+  return allSlotsCache;
+}
+
+// Создать бронирование
+export async function createBooking(request: CreateBookingRequest): Promise<Booking> {
+  await delay(500); // имитация задержки сети
+
+  // С вероятностью 10% возвращаем ошибку NOVICE_LIMIT_EXCEEDED
+  if (Math.random() < 0.1) {
+    throw {
+      error: {
+        code: 'NOVICE_LIMIT_EXCEEDED',
+        message: 'Превышен лимит новичков на этот заезд (максимум 8)',
+      },
+    };
+  }
+
+  // Получаем все слоты, чтобы найти нужный
+  const allSlots = await getAllSlots();
+  const slot = allSlots.find((s) => s.id === request.slotId);
+
+  if (!slot) {
+    throw {
+      error: {
+        code: 'SLOT_NOT_FOUND',
+        message: 'Слот не найден',
+      },
+    };
+  }
+
+  // Считаем итоговую стоимость
+  const totalPrice =
+    slot.basePrice + (request.equipmentType === 'rental' ? slot.equipmentRentalPrice : 0);
+
+  // Создаём объект брони
+  const booking: Booking = {
+    id: `booking_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+    slotId: request.slotId,
+    userId: 'user_demo', // для учебного проекта — фиктивный пользователь
+    equipmentType: request.equipmentType,
+    skillLevel: request.skillLevel,
+    status: 'active',
+    totalPrice,
+    createdAt: new Date().toISOString(),
+  };
+
+  // Сохраняем в localStorage
+  const existingBookings = getMyBookings();
+  existingBookings.push(booking);
+  localStorage.setItem('bookings', JSON.stringify(existingBookings));
+
+  return booking;
+}
+
+// Получить все мои брони из localStorage
+export function getMyBookings(): Booking[] {
+  const data = localStorage.getItem('bookings');
+  if (!data) return [];
+  try {
+    return JSON.parse(data);
+  } catch {
+    return [];
+  }
 }

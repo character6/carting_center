@@ -112,3 +112,4 @@ useEffect(() => {
 
 ## Коммит
 
+(https://github.com/character6/carting_center/commit/d3fe092be95f63f006f7e3a1b176a6c8d254a94b)
