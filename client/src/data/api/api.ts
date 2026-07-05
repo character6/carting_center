@@ -30,3 +30,17 @@ export async function createBooking(request: CreateBookingRequest): Promise<Book
     throw new Error('Не удалось создать бронирование. Попробуйте ещё раз.');
   }
 }
+
+import { cancelBooking as mockCancelBooking } from '../mock/mockServer';
+
+// Отменить бронирование
+export async function cancelBooking(bookingId: string): Promise<{ success: boolean }> {
+  try {
+    return await mockCancelBooking(bookingId);
+  } catch (error: any) {
+    if (error?.error?.code) {
+      throw new Error(error.error.message);
+    }
+    throw new Error('Не удалось отменить бронирование. Попробуйте ещё раз.');
+  }
+}

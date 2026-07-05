@@ -175,7 +175,7 @@ async function getAllSlots(): Promise<Slot[]> {
     allSlotsCache = generateSlots();  // ✅ без параметров
   }
   return allSlotsCache;
-}
+} 
 
 // Создать бронирование
 export async function createBooking(request: CreateBookingRequest): Promise<Booking> {
@@ -237,4 +237,80 @@ export function getMyBookings(): Booking[] {
   } catch {
     return [];
   }
+}
+
+// ==========================================
+// Фича 3: Отмена брони
+// ==========================================
+
+// Отменить бронирование
+export async function cancelBooking(bookingId: string): Promise<{ success: boolean }> {
+  await delay(400); // имитация задержки сети
+
+  const bookings = getMyBookings();
+  const booking = bookings.find((b) => b.id === bookingId);
+
+  if (!booking) {
+    throw {
+      error: {
+        code: 'BOOKING_NOT_FOUND',
+        message: 'Бронирование не найдено',
+      },
+    };
+  }
+
+  if (booking.status !== 'active') {
+    throw {
+      error: {
+        code: 'BOOKING_NOT_ACTIVE',
+        message: 'Бронирование уже не активно',
+      },
+    };
+  }
+
+  // Получаем слот, чтобы проверить время до старта
+  const allSlots = await getAllSlots();
+  const slot = allSlots.find((s) => s.id === booking.slotId);
+
+  if (!slot) {
+    throw {
+      error: {
+        code: 'SLOT_NOT_FOUND',
+        message: 'Слот не найден',
+      },
+    };
+  }
+
+  // Проверяем правило "2 часа до старта" (FR-03.1)
+  const startTime = new Date(slot.startTime);
+  const now = new Date();
+  const hoursUntilStart = (startTime.getTime() - now.getTime()) / (1000 * 60 * 60);
+
+  if (hoursUntilStart < 2) {
+    throw {
+      error: {
+        code: 'CANCEL_TOO_LATE',
+        message: 'Отмена возможна не позднее чем за 2 часа до старта',
+      },
+    };
+  }
+
+  // Обновляем статус брони
+  const updatedBookings = bookings.map((b) =>
+    b.id === bookingId ? { ...b, status: 'cancelled_by_client' as const } : b
+  );
+  localStorage.setItem('bookings', JSON.stringify(updatedBookings));
+
+  return { success: true };
+}
+
+// Проверить, можно ли отменить бронь (для UI)
+export function canCancelBooking(booking: Booking, slot: Slot): boolean {
+  if (booking.status !== 'active') return false;
+  
+  const startTime = new Date(slot.startTime);
+  const now = new Date();
+  const hoursUntilStart = (startTime.getTime() - now.getTime()) / (1000 * 60 * 60);
+  
+  return hoursUntilStart >= 2;
 }

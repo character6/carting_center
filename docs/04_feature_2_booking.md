@@ -161,3 +161,4 @@ const [confirmedBooking, setConfirmedBooking] = useState<{slot: Slot; booking: B
 
 ## Коммит
 
+(https://github.com/character6/carting_center/commit/5ca1c89ff1a49e1caf51589eebd2821f4beead0c)
