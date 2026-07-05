@@ -100,3 +100,4 @@ const handleApplyFilter = () => {
 
 ## Коммит
 
+(https://github.com/character6/carting_center/commit/9f130156485ea30870a21a0fccbbd054a40cd122)
