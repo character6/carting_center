@@ -129,3 +129,4 @@ const [currentView, setCurrentView] = useState<'slots' | 'myBookings'>('slots');
 
 ## Коммит
 
+(https://github.com/character6/carting_center/commit/1faf73dfeb4a1ce9100305f697c228b429d8f3f1)
